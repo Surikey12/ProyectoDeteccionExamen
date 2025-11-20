@@ -3,10 +3,8 @@ import cv2
 class Reporte:
 
     @staticmethod
-
     def construir_reporte(elapsed, analyzer):
         total_no = analyzer.total_no_atention
-
         porcentaje_no = (total_no / elapsed) * 100.0 if elapsed > 0 else 0.0
 
         b = analyzer.no_attention_breakdown

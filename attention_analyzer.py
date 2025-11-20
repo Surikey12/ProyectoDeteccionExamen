@@ -20,6 +20,19 @@ class AttentionAnalyzer:
 
         self.attention_threshold = 3.0  # umbral de segundos para considerar falta de atención
 
+    def reset(self):
+        """Reinicia los contadores de atención para un nuevo examen."""
+        self.total_no_atention = 0
+        self.no_attention_breakdown = {
+            "left": 0,
+            "right": 0,
+            "up": 0,
+            "down": 0,
+            "lost_roi": 0,
+            "focus_change": 0
+        }
+        self.last_movement_time = time.time()  # Reinicia el tiempo también
+
     def update(self, dx, dy, roi_present = True, window_focused = True):
         now = time.time()
         dt = now - self.last_movement_time

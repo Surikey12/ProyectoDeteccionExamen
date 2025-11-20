@@ -1,0 +1,12 @@
+--- Reporte de Atención ---
+
+Tiempo total del examen: 20.81 s
+Tiempo sin atención: 10.03 s (48.21 %)
+
+Desglose de falta de atención:
+ - Giro a la izquierda: 1.46 s
+ - Giro a la derecha: 2.22 s
+ - Giro hacia arriba: 0.83 s
+ - Giro hacia abajo: 0.79 s
+ - Pérdida del rostro: 0.00 s
+ - Cambio de ventana: 4.73 s

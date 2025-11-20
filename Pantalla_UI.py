@@ -6,6 +6,13 @@ from PIL import Image, ImageTk
 import tkinter as tk 
 from tkinter import messagebox 
 
+# Importar modulos
+from region_selector import RegionSelector
+from optical_flow_tracker import OpticalFlowTracker
+from attention_analyzer import AttentionAnalyzer
+from reporte import Reporte
+from window_monitor import WindowMonitor
+
 class Pantalla_UI: 
     def __init__(self, root): 
         self.root = root 
@@ -19,6 +26,12 @@ class Pantalla_UI:
         self.frame_bgr = None 
         self.window_focused = True 
 
+        # Instanciar módulos
+        self.roi = None
+        self.tracker = OpticalFlowTracker()
+        self.analyzer = AttentionAnalyzer()
+        self.winmonitor = WindowMonitor()
+
         # UI: Controles superiores 
         top = tk.Frame(root) 
         top.pack(fill=tk.X, padx=10, pady=6)
@@ -29,6 +42,10 @@ class Pantalla_UI:
         
         self.btn_start = tk.Button(top, text="Iniciar examen", command=self.toggle_exam, bg="#2e7d32", fg="white") 
         self.btn_start.pack(side=tk.LEFT, padx=8) 
+
+        # Boton para seleccionar ROI
+        self.btn_roi = tk.Button(top, text="Seleccionar Rostro a Detectar", command=self.seleccionar_roi)
+        self.btn_roi.pack(side=tk.LEFT, padx=10)
 
         self.lbl_timer = tk.Label(top, text="00:00", font=("Arial", 12, "bold")) 
         self.lbl_timer.pack(side=tk.RIGHT) 
@@ -85,6 +102,23 @@ class Pantalla_UI:
         if scale < 1.0: 
             frame_rgb = cv2.resize(frame_rgb, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_AREA) 
         
+        # Si el examen está activo, procesar el frame
+        if self.exam_active and self.tracker.initialized:
+            gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+            dxdy = self.tracker.track(gray)
+            if dxdy:
+                dx, dy = dxdy
+                self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
+                txt = self._estado_desde_mov(dx, dy)
+                cv2.putText(frame_rgb, txt, (20, 30), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, 
+                            (255, 0, 0) if txt != "Mirando" else (0,255,0), 2)
+                
+        # Dibujar ROI si está seleccionado
+        if self.roi:
+            x, y, w, h = self.roi
+            cv2.rectangle(frame_rgb, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
         im = Image.fromarray(frame_rgb) 
         imgtk = ImageTk.PhotoImage(image=im) 
         # Guardar referencia para evitar garbage collection 
@@ -98,7 +132,54 @@ class Pantalla_UI:
         # refrescar cada 20 ms (50 FPS)
         self.root.after(20, self.refresh_video)
 
-            
+
+    # Seleccion de la region de interes (ROI)
+    def seleccionar_roi(self):
+        if self.frame_bgr is None:
+            messagebox.showwarning("ROI", "No hay imagen de cámara.")
+            return
+
+        selector = RegionSelector()
+
+        clone = self.frame_bgr.copy()
+        cv2.namedWindow("Seleccionar ROI")
+        cv2.setMouseCallback("Seleccionar ROI", selector.select_roi)
+
+        while True:
+            temp = clone.copy()
+            if selector.dragging or selector.roi_ready:
+                cv2.rectangle(temp,
+                            (selector.ix, selector.iy),
+                            (selector.fx, selector.fy),
+                            (0, 255, 0), 2)
+
+            cv2.imshow("Seleccionar ROI", temp)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == 27:  # ESC
+                cv2.destroyWindow("Seleccionar ROI")
+                return
+            if selector.roi_ready:
+                break
+
+        cv2.destroyWindow("Seleccionar ROI")
+
+        self.roi = selector.get_roi()
+        messagebox.showinfo("ROI", f"ROI registrada: {self.roi}")
+
+    def _estado_desde_mov(self, dx, dy):
+        threshold = self.analyzer.attention_threshold
+        if dx > threshold:
+            return "Giro a la derecha"
+        elif dx < -threshold:
+            return "Giro a la izquierda"
+        elif dy > threshold:
+            return "Giro hacia abajo"
+        elif dy < -threshold:
+            return "Giro hacia arriba"
+        else:
+            return "Mirando"
+           
     # ---------- Examen ---------- 
     def toggle_exam(self): 
         if not self.exam_active: 
@@ -109,6 +190,20 @@ class Pantalla_UI:
             except Exception: 
                 messagebox.showwarning("Duración inválida", "Ingresa un número de minutos mayor a 0.") 
                 return 
+            
+            # Validar ROI
+            if self.roi is None:
+                messagebox.showwarning("ROI", "Debes seleccionar el ROI del rostro primero.")
+                return
+            
+            # Inicializar tracker
+            frame_gray = cv2.cvtColor(self.frame_bgr, cv2.COLOR_BGR2GRAY)
+            ok = self.tracker.initialize(frame_gray, self.roi)
+            if not ok:
+                messagebox.showwarning("Tracker", "No se pudieron detectar puntos en el ROI seleccionado.")
+                return
+            
+            # Iniciar examen
             self.exam_active = True 
             self.btn_start.configure(text="Detener examen", bg="#c62828") 
             self.exam_start_ts = time.time() 
@@ -132,17 +227,23 @@ class Pantalla_UI:
         self.exam_active = False 
         self.btn_start.configure(text="Iniciar examen", bg="#2e7d32") 
         elapsed = time.time() - self.exam_start_ts 
-        m = int(elapsed // 60) 
-        s = int(elapsed % 60) 
+        #m = int(elapsed // 60) 
+        #s = int(elapsed % 60) 
         kind = "detenido" if manual else "finalizado" 
-        messagebox.showinfo("Examen", f"Examen {kind}. Duración: {m:02d}:{s:02d}.\n" f"(En el siguiente paso se añadirán las estadísticas.)") 
+        reporte = Reporte.construir_reporte(elapsed, self.analyzer)
+        messagebox.showinfo("Examen " + kind, reporte)
+
+        with open("reporte_atencion.txt", "w", encoding="utf-8") as f: 
+            f.write(reporte)
         
     # ---------- Foco de la ventana (para el Paso 4) ---------- 
     def on_focus_in(self, event): 
         self.window_focused = True 
+        self.winmonitor.set_focus(True)
         
     def on_focus_out(self, event): 
         self.window_focused = False 
+        self.winmonitor.set_focus(False)
         
     # ---------- Cierre ---------- 
     def cierre(self): 

@@ -102,17 +102,49 @@ class Pantalla_UI:
         if scale < 1.0:
             frame_rgb = cv2.resize(frame_rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-            # Si el examen está activo, procesar el frame
+        # CAMSHIT TRAKING
+        if self.exam_active and self.roi_hist is not None and self.track_window is not None:
+            hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
+
+            # Backprojection idéntico al PDF
+            backproj = cv2.calcBackProject([hsv], [0], self.roi_hist, [0, 180], 1)
+
+            # Actualizar track_window con CamShift
+            try:
+                track_box, self.track_window = cv2.CamShift(backproj,
+                                                            self.track_window,
+                                                            self.term_crit)
+
+                # Dibujar la elipse del PDF
+                cv2.ellipse(frame_rgb, track_box, (0, 255, 0), 2)
+
+                # Actualizar ROI actual basada en CamShift
+                x, y, w, h = self.track_window
+                x, y, w, h = int(x), int(y), int(w), int(h)
+                self.roi = (x, y, w, h)
+
+                # Mandar ROI nueva al OpticalFlowTracker
+                if self.tracker.initialized:
+                    self.tracker.update_roi(self.roi)
+
+            except Exception:
+                # Si CamShift falla, se pierde el tracking
+                self.track_window = None
+                self.roi_hist = None
+
+        # OPTICAL FLOW TRACKING
+        # Si el examen está activo, procesar el frame
         if self.exam_active and self.tracker.initialized:
             gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
             dxdy = self.tracker.track(gray)
             if dxdy:
                 dx, dy = dxdy
+                # Actualizar atención
                 self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
-                txt = self._estado_desde_mov(dx, dy)
+                txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)
                 cv2.putText(frame_rgb, txt, (20, 30),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                            (255, 0, 0) if txt != "Mirando" else (0, 255, 0), 2)
+                            (255, 0, 0) if txt != "Mirando de frente" else (0, 255, 0), 2)
 
         # Dibujar ROI si está seleccionado
         if self.roi:
@@ -164,20 +196,73 @@ class Pantalla_UI:
         cv2.destroyWindow("Seleccionar ROI")
 
         self.roi = selector.get_roi()
+
+        # Preparar CamShift como en el PDF
+        x, y, w, h = self.roi
+        # Limpiar bordes
+        H, W = clone.shape[:2]
+        x = max(0, min(x, W - 1))
+        y = max(0, min(y, H - 1))
+        w = max(10, min(w, W - x))
+        h = max(10, min(h, H - y))
+
+        # Guardar ROI principal
+        self.roi = (x, y, w, h)
+
+        roi_bgr = clone[y:y+h, x:x+w]
+        hsv_roi = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv_roi, np.array((0., 30., 10.)),
+                                    np.array((180., 255., 255.)))
+
+        roi_hist = cv2.calcHist([hsv_roi], [0], mask, [180], [0, 180])
+        # Normalizado (crítico para CamShift)
+        cv2.normalize(roi_hist, roi_hist, 0, 255, cv2.NORM_MINMAX)
+
+        self.roi_hist = roi_hist
+        self.track_window = (x, y, w, h)
+
+        # Criterio de parada EXACTO al del PDF
+        self.term_crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
+
         messagebox.showinfo("ROI", f"ROI registrada: {self.roi}")
 
-    def _estado_desde_mov(self, dx, dy):
-        threshold = self.analyzer.attention_threshold
-        if dx > threshold:
-            return "Giro a la derecha"
-        elif dx < -threshold:
-            return "Giro a la izquierda"
-        elif dy > threshold:
-            return "Giro hacia abajo"
-        elif dy < -threshold:
-            return "Giro hacia arriba"
-        else:
-            return "Mirando"
+    def _estado_desde_posicion(self, roi, frame_shape):
+        # Si hay movimiento, detecta giro.
+        # Si no hay movimiento, usa el último estado guardado por AtentionAnalizer.
+
+        if roi is None:
+            return "Rostro Perdido"
+
+        x, y, w, h = roi
+        cx = x + w/2
+        cy = y + h/2
+
+        H, W = frame_shape[:2]
+        center_x = W / 2
+        center_y = H / 2
+
+        umbral_x = W * 0.05
+        umbral_y = H * 0.05
+
+        # Condición: ROI cerca del centro → mirando al frente
+        if abs(cx - center_x) < umbral_x and abs(cy - center_y) < umbral_y:
+            # Resetear dirección almacenada
+            self.analyzer.last_direction = None
+            return "Mirando de frente"
+
+        # Si está alejándose del centro → usar dirección almacenada
+        direction = getattr(self.analyzer, "last_direction", None)
+
+        if direction == "right":
+            return "Mirando hacia la derecha"
+        elif direction == "left":
+            return "Mirando hacia la izquierda"
+        elif direction == "up":
+            return "Mirando hacia arriba"
+        elif direction == "down":
+            return "Mirando hacia abajo"
+
+        return "Mirando de frente"
 
     # ---------- Examen ----------
     def toggle_exam(self):

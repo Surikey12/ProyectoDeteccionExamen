@@ -48,24 +48,27 @@ class AttentionAnalyzer:
             self.no_attention_breakdown["focus_change"] += dt
             return
         
+        direction = None
         # Determinar dirección del movimiento
         if dx > self.attention_threshold:
-            self.total_no_atention += dt
-            self.no_attention_breakdown["right"] += dt
+            direction = "right"
         
         elif dx < -self.attention_threshold:
-            self.total_no_atention += dt
-            self.no_attention_breakdown["left"] += dt
+            direction = "left"
 
         elif dy > self.attention_threshold:
-            self.total_no_atention += dt
-            self.no_attention_breakdown["down"] += dt
+            direction = "down"
         
         elif dy < -self.attention_threshold:
+            direction = "up"
+
+        # Si hubo un giro reciente, mantenemos ese estado hasta nuevo movimiento:
+        if direction:
+            self.last_direction = direction
+        else:
+            # Si no hay movimiento, mantener la última dirección
+            direction = getattr(self, "last_direction", None)
+
+        if direction:
             self.total_no_atention += dt
-            self.no_attention_breakdown["up"] += dt
-
-        
-            
-
-        
+            self.no_attention_breakdown[direction] += dt

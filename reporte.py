@@ -9,7 +9,7 @@ class Reporte:
 
         b = analyzer.no_attention_breakdown
         # Determinar si hay comportamiento sospechoso
-        sospechoso = "SÍ" if porcentaje_no > 40.0 else "NO"
+        sospechoso = "Sospechoso (mas del 40'%'sin atención)" if porcentaje_no > 40.0 else "Normal"
 
         reporte = (
             f"--- Reporte de Atención ---\n\n"
@@ -22,7 +22,7 @@ class Reporte:
             f" - Giro hacia abajo: {b['down']:.2f} s\n"
             f" - Pérdida del rostro: {b['lost_roi']:.2f} s\n"
             f" - Cambio de ventana: {b['focus_change']:.2f} s\n\n"
-            f"Comportamiento sospechoso: {sospechoso} (más del 40% sin atención)\n"
+            f"Comportamiento: {sospechoso}\n"
         )
 
         return reporte

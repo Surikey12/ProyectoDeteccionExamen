@@ -23,6 +23,7 @@ class OpticalFlowTracker:
         self.initialized = False
         self.prev_gray = None
         self.prev_points = None
+        # ROI actual (esta debe venir de CAMSHIFT)
         self.roi_box = None  
 
     def initialize(self, frame_gray, roi):
@@ -40,9 +41,15 @@ class OpticalFlowTracker:
 
         self.prev_points = puntos
         self.prev_gray = frame_gray.copy()
-        self.roi_box = (x, y, w, h) #roi
+        self.roi_box = roi
         self.initialized = True
         return True
+    
+    def update_roi(self, roi):
+        """
+        Cada vez que CamShift cambia la ROI, Pantalla_UI debe llamar a este método.
+        """
+        self.roi_box = roi
     
     def track(self, frame_gray):
         if not self.initialized or self.prev_points is None:
@@ -59,16 +66,28 @@ class OpticalFlowTracker:
         good_new = next_points[status == 1]
         good_old = self.prev_points[status == 1]
 
+        # Si se perdieron muchos puntos → volver a detectar en la ROI ACTUALIZADA
+        if len(good_new) < 10 and self.roi_box is not None:
+            x, y, w, h = self.roi_box
+            roi_gray = frame_gray[y:y+h, x:x+w]
+
+            puntos = cv2.goodFeaturesToTrack(
+                roi_gray, mask=None, **self.feature_params)
+
+            if puntos is not None:
+                puntos[:, 0, 0] += x
+                puntos[:, 0, 1] += y
+
+                self.prev_points = puntos
+                self.prev_gray = frame_gray.copy()
+                return None, None
+
         # Calculo del movimiento promedio
         movimiento = good_new - good_old
         dx = float(np.mean(movimiento[:, 0]))
         dy = float(np.mean(movimiento[:, 1]))
 
-        # Actualizar ROI dinámicamente
-        x, y, w, h = self.roi_box
-        x = int(x + dx)
-        y = int(y + dy)
-        self.roi_box = (x, y, w, h)
+
         # Actualizar estado para la siguiente iteración
         self.prev_points = good_new.reshape(-1, 1, 2)
         self.prev_gray = frame_gray.copy()

@@ -33,7 +33,7 @@ class AttentionAnalyzer:
         }
         self.last_movement_time = time.time()  # Reinicia el tiempo también
 
-    def update(self, dx, dy, roi_present = True, window_focused = True):
+    def update(self, dx, dy, roi_present=True, window_focused=True):
         now = time.time()
         dt = now - self.last_movement_time
         self.last_movement_time = now
@@ -41,26 +41,24 @@ class AttentionAnalyzer:
         if not roi_present:
             self.total_no_atention += dt
             self.no_attention_breakdown["lost_roi"] += dt
-            return 
-        
+            return
+
         if not window_focused:
             self.total_no_atention += dt
             self.no_attention_breakdown["focus_change"] += dt
             return
-        
-        direction = None
-        # Determinar dirección del movimiento
-        if dx > self.attention_threshold:
-            direction = "right"
-        
-        elif dx < -self.attention_threshold:
-            direction = "left"
 
-        elif dy > self.attention_threshold:
-            direction = "down"
-        
-        elif dy < -self.attention_threshold:
-            direction = "up"
+        direction = None
+        # Determinar dirección del movimiento (solo si dx y dy no son None)
+        if dx is not None and dy is not None:
+            if dx > self.attention_threshold:
+                direction = "right"
+            elif dx < -self.attention_threshold:
+                direction = "left"
+            elif dy > self.attention_threshold:
+                direction = "down"
+            elif dy < -self.attention_threshold:
+                direction = "up"
 
         # Si hubo un giro reciente, mantenemos ese estado hasta nuevo movimiento:
         if direction:

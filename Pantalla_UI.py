@@ -102,7 +102,7 @@ class Pantalla_UI:
         if scale < 1.0:
             frame_rgb = cv2.resize(frame_rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-        # CAMSHIT TRAKING
+        # CAMSHIFT TRACKING
         if self.exam_active and self.roi_hist is not None and self.track_window is not None:
             hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
 
@@ -131,20 +131,29 @@ class Pantalla_UI:
                 # Si CamShift falla, se pierde el tracking
                 self.track_window = None
                 self.roi_hist = None
+                self.roi = None  # <-- AGREGADO: Resetear ROI para marcar "Rostro Perdido"
 
         # OPTICAL FLOW TRACKING
-        # Si el examen está activo, procesar el frame
-        if self.exam_active and self.tracker.initialized:
-            gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-            dxdy = self.tracker.track(gray)
-            if dxdy:
-                dx, dy = dxdy
-                # Actualizar atención
-                self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
-                txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)
-                cv2.putText(frame_rgb, txt, (20, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                            (255, 0, 0) if txt != "Mirando de frente" else (0, 255, 0), 2)
+        if self.exam_active:
+            if self.roi is None:
+                # ROI perdido: marcar como falta de atención por pérdida de rostro
+                self.analyzer.update(None, None, roi_present=False, window_focused=self.window_focused)
+            elif self.tracker.initialized:
+                gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+                dxdy = self.tracker.track(gray)
+                if dxdy:
+                    dx, dy = dxdy
+                    # Actualizar atención con movimiento detectado
+                    self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
+                else:
+                    # No se pudo calcular movimiento (puntos perdidos), asumir atención (sin movimiento)
+                    self.analyzer.update(0, 0, roi_present=True, window_focused=self.window_focused)
+
+        # Siempre mostrar el estado del rostro (incluso si no hay movimiento)
+        txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)
+        cv2.putText(frame_rgb, txt, (20, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+                    (255, 0, 0) if txt != "Mirando de frente" else (0, 255, 0), 2)
 
         # Dibujar ROI si está seleccionado
         if self.roi:

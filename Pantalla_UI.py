@@ -108,7 +108,7 @@ class Pantalla_UI:
         if scale < 1.0:
             frame_rgb = cv2.resize(frame_rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-        # CAMSHIT TRAKING
+        # CAMSHIFT TRACKING
         if self.exam_active and self.roi_hist is not None and self.track_window is not None:
             hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
 
@@ -137,20 +137,37 @@ class Pantalla_UI:
                 # Si CamShift falla, se pierde el tracking
                 self.track_window = None
                 self.roi_hist = None
+                self.roi = None  # <-- AGREGADO: Resetear ROI para marcar "Rostro Perdido"
 
         # OPTICAL FLOW TRACKING
-        # Si el examen está activo, procesar el frame
-        if self.exam_active and self.tracker.initialized:
-            gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
-            dxdy = self.tracker.track(gray)
-            if dxdy:
-                dx, dy = dxdy
-                # Actualizar atención
-                self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
+        if self.exam_active:
+            if self.roi is None:
+                # ROI perdido: marcar como falta de atención por pérdida de rostro
+                self.analyzer.update(None, None, roi_present=False, window_focused=self.window_focused)
+                txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)  # Sin dx/dy, ya que ROI es None
+            elif self.tracker.initialized:
+                gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+                dxdy = self.tracker.track(gray)
+                if dxdy:
+                    dx, dy = dxdy
+                    # Actualizar atención con movimiento detectado
+                    self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
+                    txt = self._estado_desde_posicion(self.roi, frame_rgb.shape, dx, dy)  # Pasar dx, dy
+                else:
+                    # No se pudo calcular movimiento (puntos perdidos), asumir atención (sin movimiento)
+                    self.analyzer.update(0, 0, roi_present=True, window_focused=self.window_focused)
+                    txt = self._estado_desde_posicion(self.roi, frame_rgb.shape, 0, 0)  # Pasar 0, 0 como sin movimiento
+            else:
+                # Examen activo pero tracker no inicializado (e.g., al inicio)
                 txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)
-                cv2.putText(frame_rgb, txt, (20, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1.0,
-                            (255, 0, 0) if txt != "Mirando de frente" else (0, 255, 0), 2)
+        else:
+            # Examen no activo
+            txt = self._estado_desde_posicion(self.roi, frame_rgb.shape)
+
+        # Siempre mostrar el estado del rostro (incluso si no hay movimiento)
+        cv2.putText(frame_rgb, txt, (20, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.0,
+                    (255, 0, 0) if txt != "Mirando de frente" else (0, 255, 0), 2)
 
         # Dibujar ROI si está seleccionado
         if self.roi:
@@ -217,7 +234,7 @@ class Pantalla_UI:
 
         roi_bgr = clone[y:y+h, x:x+w]
         hsv_roi = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv_roi, np.array((0., 30., 10.)),
+        mask = cv2.inRange(hsv_roi, np.array((0., 20., 30.)),
                                     np.array((180., 255., 255.)))
 
         roi_hist = cv2.calcHist([hsv_roi], [0], mask, [180], [0, 180])
@@ -238,27 +255,27 @@ class Pantalla_UI:
 
         messagebox.showinfo("ROI", f"ROI registrada: {self.roi}")
 
-    def _estado_desde_posicion(self, roi, frame_shape):
-        # Si hay movimiento, detecta giro.
-        # Si no hay movimiento, usa el último estado guardado por AtentionAnalizer.
-
+    def _estado_desde_posicion(self, roi, frame_shape, dx=None, dy=None):
         if roi is None:
             return "Rostro Perdido"
 
-        x, y, w, h = roi
-        cx = x + w/2
-        cy = y + h/2
+        # Si hay movimiento pequeño (dx, dy cercanos a 0), asumir mirando al frente
+        if dx is not None and dy is not None:
+            if abs(dx) < 2.0 and abs(dy) < 2.0:  # Umbral bajo para movimiento mínimo
+                self.analyzer.last_direction = None
+                return "Mirando de frente"
 
-        """H, W = frame_shape[:2]
+        # Si no hay dx/dy o movimiento grande, usar posición del ROI como respaldo
+        x, y, w, h = roi
+        cx = x + w / 2
+        cy = y + h / 2
+        H, W = frame_shape[:2]
         center_x = W / 2
         center_y = H / 2
+        umbral_x = W * 0.1  # Aumentar umbral para más tolerancia (10% en lugar de 5%)
+        umbral_y = H * 0.1
 
-        umbral_x = W * 0.09
-        umbral_y = H * 0.09
-        
-        # Condición: ROI cerca del centro → mirando al frente
         if abs(cx - center_x) < umbral_x and abs(cy - center_y) < umbral_y:
-            # Resetear dirección almacenada
             self.analyzer.last_direction = None
             return "Mirando de frente"""
 
@@ -285,9 +302,8 @@ class Pantalla_UI:
                 self._front_inside_since = None
 
 
-        # Si está alejándose del centro → usar dirección almacenada
+        # Usar dirección almacenada si hay movimiento
         direction = getattr(self.analyzer, "last_direction", None)
-
         if direction == "right":
             return "Mirando hacia la derecha"
         elif direction == "left":
@@ -297,7 +313,7 @@ class Pantalla_UI:
         elif direction == "down":
             return "Mirando hacia abajo"
 
-        return "Mirando de frente"
+        return "Mirando de frente"  # Por defecto, si no hay dirección clara
 
     # ---------- Examen ----------
     def toggle_exam(self):

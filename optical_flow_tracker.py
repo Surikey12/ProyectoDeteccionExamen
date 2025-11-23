@@ -66,20 +66,19 @@ class OpticalFlowTracker:
         good_new = next_points[status == 1]
         good_old = self.prev_points[status == 1]
 
-        # Si se perdieron muchos puntos → volver a detectar en la ROI ACTUALIZADA
+        # Si se perdieron muchos puntos → intentar reinicializar en el ROI ACTUALIZADO
         if len(good_new) < 10 and self.roi_box is not None:
             x, y, w, h = self.roi_box
-            roi_gray = frame_gray[y:y+h, x:x+w]
-
-            puntos = cv2.goodFeaturesToTrack(
-                roi_gray, mask=None, **self.feature_params)
-
+            roi_gray = frame_gray[y:y + h, x:x + w]
+            puntos = cv2.goodFeaturesToTrack(roi_gray, mask=None, **self.feature_params)
             if puntos is not None:
                 puntos[:, 0, 0] += x
                 puntos[:, 0, 1] += y
-
                 self.prev_points = puntos
                 self.prev_gray = frame_gray.copy()
+                return None, None  # No devolver movimiento hasta el próximo frame
+            else:
+                # Si no se pueden detectar puntos, devolver None para marcar falta de atención
                 return None, None
 
         # Calculo del movimiento promedio

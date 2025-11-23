@@ -32,6 +32,12 @@ class Pantalla_UI:
         self.analyzer = AttentionAnalyzer()
         self.winmonitor = WindowMonitor()
 
+        # Estado adicional para mirada al frente
+        self.neutral_center = None           # (nx, ny) capturado al seleccionar ROI
+        self.front_hysteresis_ms = 250       # tiempo mínimo dentro de la zona neutral
+        self._front_inside_since = None      # timestamp cuando entró a la zona
+
+
         # UI: Controles superiores
         top = tk.Frame(root)
         top.pack(fill=tk.X, padx=10, pady=6)
@@ -221,6 +227,12 @@ class Pantalla_UI:
         self.roi_hist = roi_hist
         self.track_window = (x, y, w, h)
 
+        
+        # Guardar el centro neutral (calibración)
+        nx = x + w / 2.0
+        ny = y + h / 2.0
+        self.neutral_center = (nx, ny)
+
         # Criterio de parada EXACTO al del PDF
         self.term_crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 1)
 
@@ -237,18 +249,41 @@ class Pantalla_UI:
         cx = x + w/2
         cy = y + h/2
 
-        H, W = frame_shape[:2]
+        """H, W = frame_shape[:2]
         center_x = W / 2
         center_y = H / 2
 
-        umbral_x = W * 0.05
-        umbral_y = H * 0.05
-
+        umbral_x = W * 0.09
+        umbral_y = H * 0.09
+        
         # Condición: ROI cerca del centro → mirando al frente
         if abs(cx - center_x) < umbral_x and abs(cy - center_y) < umbral_y:
             # Resetear dirección almacenada
             self.analyzer.last_direction = None
-            return "Mirando de frente"
+            return "Mirando de frente"""
+
+        
+        # Umbrales relativos al tamaño del rostro (ajusta si quieres)
+        umbral_x = max(8.0, w * 0.12)   # mínimo en pixeles para evitar exceso de sensibilidad
+        umbral_y = max(8.0, h * 0.15)
+
+        # Si tenemos centro neutral, usamos esa referencia
+        if self.neutral_center is not None:
+            nx, ny = self.neutral_center
+            dentro_neutral = (abs(cx - nx) < umbral_x) and (abs(cy - ny) < umbral_y)
+            if dentro_neutral:
+                # Histeresis temporal para declarar "frente" estable
+                now = time.time()
+                if self._front_inside_since is None:
+                    self._front_inside_since = now
+                elif (now - self._front_inside_since) * 1000.0 >= self.front_hysteresis_ms:
+                    # Estable: resetear dirección y reportar "frente"
+                    self.analyzer.last_direction = None
+                    return "Mirando de frente"
+            else:
+                # Salió de la zona neutral
+                self._front_inside_since = None
+
 
         # Si está alejándose del centro → usar dirección almacenada
         direction = getattr(self.analyzer, "last_direction", None)

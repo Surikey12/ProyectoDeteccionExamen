@@ -58,7 +58,7 @@ Aplicación en Python que utiliza visión por computadora para monitorear si un 
 Ejecuta el archivo principal:
 
 ```bash
-python monitoreo_atencion_ui.py
+python main.py
 ```
 
 ## ▶️ Pasos básicos

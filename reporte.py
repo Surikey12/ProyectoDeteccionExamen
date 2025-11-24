@@ -1,16 +1,16 @@
-import cv2
-
+# Clase utilizada para generar reportes del examen de atención
 class Reporte:
 
     @staticmethod
+    #  Genera un reporte detallado del examen de atención.
     def construir_reporte(elapsed, analyzer):
-        total_no = analyzer.total_no_atention
-        porcentaje_no = (total_no / elapsed) * 100.0 if elapsed > 0 else 0.0
-
+        total_no = analyzer.total_no_atention # # Tiempo total sin atención acumulado por el analizador
+        porcentaje_no = (total_no / elapsed) * 100.0 if elapsed > 0 else 0.0 # Porcentaje de tiempo sin atención respecto al tiempo total del examen
+        # Desglose por causa (diccionario con claves: left, right, up, down, lost_roi, focus_change)
         b = analyzer.no_attention_breakdown
-        # Determinar si hay comportamiento sospechoso
+        # Evaluación básica: comportamiento sospechoso si más del 40% del tiempo sin atención
         sospechoso = "Sospechoso (mas del 40'%'sin atención)" if porcentaje_no > 40.0 else "Normal"
-
+        # Construcción de reporte en formato legible
         reporte = (
             f"--- Reporte de Atención ---\n\n"
             f"Tiempo total del examen: {elapsed:.2f} s\n"

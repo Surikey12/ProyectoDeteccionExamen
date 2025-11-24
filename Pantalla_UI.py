@@ -148,11 +148,27 @@ class Pantalla_UI:
             elif self.tracker.initialized:
                 gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
                 dxdy = self.tracker.track(gray)
+                points = getattr(self.tracker, "good_new", None)
+
                 if dxdy:
                     dx, dy = dxdy
-                    # Actualizar atención con movimiento detectado
+
+                    # 1) Actualizar giro natural
                     self.analyzer.update(dx, dy, roi_present=True, window_focused=self.window_focused)
-                    txt = self._estado_desde_posicion(self.roi, frame_rgb.shape, dx, dy)  # Pasar dx, dy
+
+                    # 2) Detectar si está de frente con tu función especial
+                    if points is not None and len(points) > 0:
+                        if self.analyzer.is_facing_forward(points, self.roi):
+                            txt = "Mirando de frente"
+                            # Resetear dirección almacenada para no pelearse con el giro
+                            self.analyzer.last_direction = None
+                        else:
+                            # Si no está frontal, ya usamos tu función de giro / posición
+                            txt = self._estado_desde_posicion(self.roi, frame_rgb.shape, dx, dy)
+                    else:
+                        # Sin puntos → usa método normal
+                        txt = self._estado_desde_posicion(self.roi, frame_rgb.shape, dx, dy)
+
                 else:
                     # No se pudo calcular movimiento (puntos perdidos), asumir atención (sin movimiento)
                     self.analyzer.update(0, 0, roi_present=True, window_focused=self.window_focused)
@@ -260,10 +276,10 @@ class Pantalla_UI:
             return "Rostro Perdido"
 
         # Si hay movimiento pequeño (dx, dy cercanos a 0), asumir mirando al frente
-        if dx is not None and dy is not None:
+        """if dx is not None and dy is not None:
             if abs(dx) < 2.0 and abs(dy) < 2.0:  # Umbral bajo para movimiento mínimo
                 self.analyzer.last_direction = None
-                return "Mirando de frente"
+                return "Mirando de frente" """
 
         # Si no hay dx/dy o movimiento grande, usar posición del ROI como respaldo
         x, y, w, h = roi
@@ -272,15 +288,15 @@ class Pantalla_UI:
         H, W = frame_shape[:2]
         center_x = W / 2
         center_y = H / 2
-        umbral_x = W * 0.1  # Aumentar umbral para más tolerancia (10% en lugar de 5%)
-        umbral_y = H * 0.1
+        umbral_x = W * 0.05
+        umbral_y = H * 0.05
 
         if abs(cx - center_x) < umbral_x and abs(cy - center_y) < umbral_y:
             self.analyzer.last_direction = None
             return "Mirando de frente"""
 
         
-        # Umbrales relativos al tamaño del rostro (ajusta si quieres)
+        # Umbrales relativos al tamaño del rostro
         umbral_x = max(8.0, w * 0.12)   # mínimo en pixeles para evitar exceso de sensibilidad
         umbral_y = max(8.0, h * 0.15)
 

@@ -70,3 +70,35 @@ class AttentionAnalyzer:
         if direction:
             self.total_no_atention += dt
             self.no_attention_breakdown[direction] += dt
+
+    def is_facing_forward(self, points, roi):
+        """
+        Detecta si el alumno está mirando al frente usando simetría vertical.
+        points = features en el frame (prev_points o good_new)
+        roi = (x, y, w, h)
+        """
+        if points is None or len(points) < 6:
+            return False
+
+        x, y, w, h = roi
+        cx_split = x + w / 2  # mitad del ROI
+
+        left = 0
+        right = 0
+
+        # Contar puntos en izquierda y derecha del ROI
+        for (px, py) in points:
+            if px < cx_split:
+                left += 1
+            else:
+                right += 1
+
+        # Si solo hay puntos en un lado, no hay simetría
+        if left == 0 or right == 0:
+            return False
+
+        # Calcular simetría
+        ratio = min(left, right) / max(left, right)
+
+        # Umbral recomendado: 70% de simetría
+        return ratio > 0.6

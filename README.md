@@ -1,24 +1,22 @@
 # Sistema Avanzado de Monitoreo de Atención
 
-Una aplicación de visión por computadora para monitorear la atención durante exámenes, utilizando seguimiento óptico y análisis de movimientos faciales.
-
-Este proyecto implementa un sistema inteligente para detectar y analizar la atención de un usuario durante un examen virtual. Utiliza la cámara del dispositivo para rastrear movimientos de la cabeza, detectar giros (izquierda, derecha, arriba, abajo), pérdida de rostro y cambios de foco en la ventana. Genera reportes detallados al finalizar el examen, ayudando a identificar comportamientos sospechosos como distracciones o intentos de hacer trampa.
+Este proyecto implementa un sistema para la detectección y analisis de la atención de un usuario durante un examen virtual. Utiliza la cámara del dispositivo para rastrear movimientos de cabeza, es decir, giros (izquierda, derecha, arriba, abajo), pérdida de rostro y cambios de foco en la ventana. Genera un reporte al finalizar el examen donde detalla el comportamiento durante el examen, ayudando a identificar comportamientos sospechosos como distracciones o intentos de hacer trampa.
 
 ---
 
-## 📌 Características Principales
+## Características Principales
 
 - **Selección manual de ROI (Región de Interés)**  
 - **Seguimiento Óptico y CamShift**  
 - **Análisis de Atención en tiempo real**  
-- **Interfaz gráfica moderna con Tkinter**  
-- **Reportes detallados al finalizar**  
+- **Interfaz gráfica con Tkinter**  
+- **Reporte al finalizar detallando el comportamiento**  
 - **Monitoreo de foco de ventana**  
 - **Detección de mirada al frente por simetría facial**
 
 ---
 
-## 🛠 Requisitos
+## Requisitos
 
 - Python 3.7+
 - Cámara web
@@ -27,11 +25,10 @@ Este proyecto implementa un sistema inteligente para detectar y analizar la aten
   - `numpy`
   - `Pillow`
   - `tkinter` (incluido en Python estándar)
-- Compatible con Windows, macOS y Linux
 
 ---
 
-## 📥 Instalación
+## Instalación
 
 Clona este repositorio:
 
@@ -40,7 +37,7 @@ git clone https://github.com/tu-usuario/tu-repositorio.git
 cd tu-repositorio
 ```
 
-## 📥 Instalación de Dependencias
+## Instalación de Dependencias
 
 Instala las dependencias:
 
@@ -48,24 +45,19 @@ Instala las dependencias:
 pip install opencv-python numpy Pillow
 ```
 
-# 🧠 Monitoreo de Atención con Visión por Computadora
+## Cómo Ejecutar
 
-Aplicación en Python que utiliza visión por computadora para monitorear si un alumno mantiene la mirada en la pantalla durante un examen en línea. Registra distracciones, cambios de ventana y genera un reporte final.
----
-
-## ▶️ Cómo Ejecutar
-
-Ejecuta el archivo principal:
+Ejecuta el archivo principal dende la carpeta del proyecto:
 
 ```bash
-python monitoreo_atencion_ui.py
+python main.py
 ```
 
-## ▶️ Pasos básicos
+## Pasos básicos
 
-- Selecciona el rostro con **👤 Seleccionar Rostro**
-- Ingresa la **duración del examen (en minutos)**
-- Inicia con **▶️ Iniciar Examen**
+- Selecciona el rostro con **Seleccionar Rostro**
+- Ingresa la **Duración del examen (en minutos)**
+- Inicia dando click en **Iniciar Examen**
 - Al finalizar, se generará el archivo:
 
 ```
@@ -80,22 +72,23 @@ self.cap = cv2.VideoCapture(0)
 
 ---
 
-## 📦 Módulos del Proyecto
+## Módulos del Proyecto
 
 ### 1. `Pantalla_UI`
 Controla toda la interfaz gráfica (Tkinter) y conecta todos los módulos.
 
-### 2. `RegionSelector`
+### 2. `Region_Selector`
 Permite seleccionar el ROI del rostro mediante una ventana de OpenCV.
 
-### 3. `OpticalFlowTracker`
-Realiza seguimiento del rostro mediante el método Lucas–Kanade:
+### 3. `Optical_Flow_Tracker`
+Realiza seguimiento del rostro mediante el métodos como:
 
 ```python
-cv2.calcOpticalFlowPyrLK
+cv2.goodFeaturesToTrack()
+cv2.calcOpticalFlowPyrLK()
 ```
 
-### 4. `AttentionAnalyzer`
+### 4. `Attention_Analyzer`
 Analiza:
 - Movimientos
 - Giros de cabeza
@@ -103,14 +96,17 @@ Analiza:
 - Cambios de ventana
 
 ### 5. `Reporte`
-Genera reportes finales con porcentajes y tiempos acumulados.
+Genera el reporte final con porcentajes y tiempos acumulados de cada acción.
 
-### 6. `WindowMonitor`
-Detecta si la ventana pierde el foco durante el examen.
+### 6. `Window_Monitor`
+Detecta si se cambia de ventana durante el examen.
+
+### 7. `Main`
+Punto principal donde se lleva a cabo el llamado y la ejecución de toda la aplicació.
 
 ---
 
-## 🖥 Funcionamiento de la Interfaz
+## Funcionamiento de la Interfaz
 
 Elementos principales:
 
@@ -123,27 +119,17 @@ Elementos principales:
 
 ---
 
-## 🔍 Flujo de Uso
+## Ejemplos de Uso
 
-1. Abrir la aplicación  
-2. Seleccionar rostro  
-3. Iniciar examen  
-4. La app analiza movimientos en tiempo real  
-5. Finaliza y genera reporte automáticamente  
-
----
-
-## 📂 Ejemplos de Uso
-
-- Detectar distracciones moviendo la cabeza  
-- Cambiar de ventana para simular pérdida de foco  
+- Detectar distracciones moviendo la cabear pérdida de foco za  
+- Cambiar de ventana para simul 
 - Revisar el archivo generado **reporte_atencion.txt**
 
 ---
 
 
-## 👤 Créditos
+## Equipo
 
-Desarrollado por **[Surikey y Roberto Carlos]**  
-Basado en **OpenCV, NumPy, Pillow y Tkinter**.
+Desarrollado por **[Surikey Hipolito Aguilar y Roberto Carlos Hernandez Aparicio]**  
+Basado en **Jan Erik Solem — Programming Computer Vision with Python y Michael Beyeler — OpenCV Computer Vision with Python**.
 

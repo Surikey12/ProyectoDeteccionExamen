@@ -47,7 +47,7 @@ pip install opencv-python numpy Pillow
 
 ## Cómo Ejecutar
 
-Ejecuta el archivo principal dende la carpeta del proyecto:
+Ejecuta el archivo principal donde la carpeta del proyecto:
 
 ```bash
 python main.py
@@ -121,8 +121,8 @@ Elementos principales:
 
 ## Ejemplos de Uso
 
-- Detectar distracciones moviendo la cabear pérdida de foco za  
-- Cambiar de ventana para simul 
+- Detectar distracciones moviendo la cabeza  
+- Cambiar de ventana para simular hacer trampa viendo información en otra ventana. 
 - Revisar el archivo generado **reporte_atencion.txt**
 
 ---

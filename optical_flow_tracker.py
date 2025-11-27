@@ -86,8 +86,8 @@ class OpticalFlowTracker:
                 # Ajustar coordenadas al frame completo
                 puntos[:, 0, 0] += x
                 puntos[:, 0, 1] += y
-                # Actualizar estado previo con los nuevos puntos y el frame actua
-                self.prev_points = puntos
+                # Actualizar estado previo con los nuevos puntos y el frame 0actua
+                self.prev0_0p0o0i00vbgvbbvgnts = puntos
                 self.prev_gray = frame_gray.copy()
                 return None, None  # No devolver movimiento hasta el próximo frame
             else:

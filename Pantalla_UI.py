@@ -90,7 +90,7 @@ class Pantalla_UI:
         # Submarco izquierdo: Para duración y entrada de tiempo
         left_controls = ttk.Frame(controls_frame, style="TFrame")
         left_controls.pack(side=tk.LEFT)
-        ttk.Label(left_controls, text="⏱️ Duración (min):", style="TLabel").pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(left_controls, text="Duración (min):", style="TLabel").pack(side=tk.LEFT, padx=(0, 10))
         self.duration_var = tk.StringVar(value="1")
         duration_entry = ttk.Entry(left_controls, textvariable=self.duration_var, width=8, style="TEntry")
         duration_entry.pack(side=tk.LEFT, padx=(0, 30))
@@ -98,10 +98,10 @@ class Pantalla_UI:
         # Submarco central: Para botones principales (Seleccionar ROI, Iniciar/Detener Examen)
         center_controls = ttk.Frame(controls_frame, style="TFrame")
         center_controls.pack(side=tk.LEFT, expand=True)
-        self.btn_roi = ttk.Button(center_controls, text="👤 Seleccionar Rostro", command=self.seleccionar_roi,
+        self.btn_roi = ttk.Button(center_controls, text="Seleccionar Rostro", command=self.seleccionar_roi,
                                   style="ROI.TButton")
         self.btn_roi.pack(side=tk.LEFT, padx=(0, 20))
-        self.btn_start = ttk.Button(center_controls, text="▶️ Iniciar Examen", command=self.toggle_exam,
+        self.btn_start = ttk.Button(center_controls, text="Iniciar Examen", command=self.toggle_exam,
                                     style="Start.TButton")
         self.btn_start.pack(side=tk.LEFT)
 
@@ -124,10 +124,10 @@ class Pantalla_UI:
         status_frame = ttk.Frame(root, style="TFrame")
         status_frame.pack(fill=tk.X, padx=30, pady=15)
         self.status_label = ttk.Label(status_frame,
-                                      text="💡 Estado: Sistema listo. Selecciona el rostro y comienza el examen.",
+                                      text="Estado: Sistema listo. Selecciona el rostro y comienza el examen.",
                                       style="Status.TLabel")
         self.status_label.pack(side=tk.LEFT)
-        ttk.Label(status_frame, text="🔒 Asegúrate de mantener la ventana enfocada.", style="Status.TLabel").pack(
+        ttk.Label(status_frame, text="Asegúrate de mantener la ventana enfocada.", style="Status.TLabel").pack(
             side=tk.RIGHT)
 
         # Iniciar captura de cámara y bucle de actualización de video
